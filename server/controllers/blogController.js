@@ -1,17 +1,23 @@
 const Blog = require('../models/Blog');
-const slugify = require('slugify');
+const slugify = require('../utils/slugify');
 
 // CREATE
 exports.createBlog = async (req, res) => {
   try {
     const { title, content } = req.body;
-    const slug = slugify(title, { lower: true });
+    const slug = generateSlug(title);
+
+    // Check if slug already exists
+    const existing = await Blog.findOne({ slug });
+    if (existing) {
+      return res.status(400).json({ message: 'A post with this title already exists.' });
+    }
 
     const newBlog = new Blog({
       title,
       content,
       slug,
-      author: req.user.userId
+      author: req.user.id
     });
 
     await newBlog.save();
@@ -60,6 +66,12 @@ exports.updateBlog = async (req, res) => {
     if (!blog) return res.status(404).json({ message: 'Blog not found' });
     if (blog.author.toString() !== req.user.userId) {
       return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if(title){
+      blog.title = title;
+      blog.content = content;
+      blog.slug = slugify(title);
     }
 
     blog.title = title || blog.title;
